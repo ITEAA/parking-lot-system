@@ -23,7 +23,7 @@ def create_tables():
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         car_number TEXT NOT NULL UNIQUE,
         car_type TEXT NOT NULL,
-        entry_time DATETIME DEFAULT CURRENT_TIMESTAMP
+        entry_time DATETIME DEFAULT (datetime('now', 'localtime'))
     );
     ''')
     # 출차 이력 테이블
@@ -179,7 +179,7 @@ def show_parking_log():
 # ------------------ 사용 예시 ------------------
 
 if __name__ == "__main__":
-    create_tables()  # 테이블 생성(최초 1회만)
+    #create_tables()  # 테이블 생성(최초 1회만)
     
     # 차량 입차 예시
     #park_car('1234', 'SUV')
@@ -204,4 +204,10 @@ if __name__ == "__main__":
     #show_parking_log()
     
     #DB삭제
-    #os.remove('parking.db')를 사용하면 됩니다.
+    '''
+    if os.path.exists(DB_NAME):
+        os.remove(DB_NAME)
+        print(f"{DB_NAME} 파일이 삭제되었습니다.")
+    else:
+        print(f"{DB_NAME} 파일이 존재하지 않습니다.")
+    '''
