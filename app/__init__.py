@@ -3,6 +3,7 @@ from flask_sqlalchemy import SQLAlchemy
 from .routes import register_routes
 import os
 from dotenv import load_dotenv
+from .db import db
 
 load_dotenv()
 
