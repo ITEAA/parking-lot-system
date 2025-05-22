@@ -42,7 +42,7 @@ import mysql.connector
 def register_routes(app):
     @app.route("/", methods=["GET"])
     def index():
-        return "🚗 Parking Lot System 서버 실행 중!"
+        return "Parking Lot System 서버 실행 중"
 
     @app.route("/entry", methods=["POST"])
     def entry():
