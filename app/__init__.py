@@ -2,7 +2,7 @@ from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
 from .routes import register_routes
-from .db import db  # ✅ db 모듈에서 불러오기
+from .db import db
 import os
 from dotenv import load_dotenv
 
