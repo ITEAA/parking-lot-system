@@ -2,7 +2,6 @@ from flask import request, jsonify
 from .models import db, Car, ParkingSpot, ParkingRecord
 from datetime import datetime
 
-
 def register_routes(app):
     @app.route("/", methods=["GET"])
     def index():
@@ -12,12 +11,15 @@ def register_routes(app):
     def entry():
         data = request.get_json()
         plate_number = data.get("plate_number")
-        car_type = data.get("car_type")
+        is_compact = data.get("is_compact", False)
         spot_number = data.get("spot_number")
+
+        if not plate_number or not spot_number:
+            return jsonify({"error": "차량 번호와 주차 공간이 필요합니다."}), 400
 
         car = Car.query.filter_by(plate_number=plate_number).first()
         if not car:
-            car = Car(plate_number=plate_number, car_type=car_type)
+            car = Car(plate_number=plate_number, is_compact=is_compact)
             db.session.add(car)
 
         spot = ParkingSpot.query.filter_by(spot_number=spot_number).first()
@@ -43,7 +45,7 @@ def register_routes(app):
         if not car:
             return jsonify({"error": "차량 정보가 없습니다."}), 404
 
-        record = ParkingRecord.query.filter_by(car=car, exit_time=None).first()
+        record = ParkingRecord.query.filter_by(car_id=car.id, exit_time=None).first()
         if not record:
             return jsonify({"error": "입차 기록이 없습니다."}), 404
 
@@ -58,3 +60,16 @@ def register_routes(app):
             "message": f"{plate_number} 차량 출차 완료",
             "fee": record.fee
         }), 200
+
+    @app.route("/parked", methods=["GET"])
+    def get_parked():
+        parked = ParkingRecord.query.filter_by(exit_time=None).all()
+        data = [
+            {
+                "plate_number": r.car.plate_number,
+                "entry_time": r.entry_time.isoformat(),
+                "is_compact": r.car.is_compact
+            }
+            for r in parked
+        ]
+        return jsonify(data)
