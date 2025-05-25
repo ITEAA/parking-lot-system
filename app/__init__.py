@@ -21,6 +21,8 @@ def create_app():
     db.init_app(app)
     migrate.init_app(app, db)
 
+    from . import models  # 반드시 db.init_app 이후에 import
+
     with app.app_context():
         db.create_all()
 
