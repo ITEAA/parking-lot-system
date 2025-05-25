@@ -1,11 +1,9 @@
-from flask_sqlalchemy import SQLAlchemy
-
-db = SQLAlchemy()
+from . import db
 
 class Car(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     plate_number = db.Column(db.String(20), unique=True, nullable=False)
-    car_type = db.Column(db.String(20))
+    is_compact = db.Column(db.Boolean, default=False)
     records = db.relationship('ParkingRecord', backref='car', lazy=True)
 
 class ParkingSpot(db.Model):
