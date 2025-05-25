@@ -1,4 +1,5 @@
 from .db import db
+from datetime import datetime
 
 class Car(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -16,6 +17,6 @@ class ParkingRecord(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     car_id = db.Column(db.Integer, db.ForeignKey('car.id'), nullable=False)
     spot_id = db.Column(db.Integer, db.ForeignKey('parking_spot.id'), nullable=False)
-    entry_time = db.Column(db.DateTime)
-    exit_time = db.Column(db.DateTime)
-    fee = db.Column(db.Float)
+    entry_time = db.Column(db.DateTime, default=datetime.now)
+    exit_time = db.Column(db.DateTime, nullable=True)
+    fee = db.Column(db.Float, nullable=True)
