@@ -1,4 +1,6 @@
-from . import db
+from flask_sqlalchemy import SQLAlchemy
+
+db = SQLAlchemy()
 
 class Car(db.Model):
     id = db.Column(db.Integer, primary_key=True)
