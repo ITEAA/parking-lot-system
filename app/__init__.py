@@ -5,6 +5,7 @@ from .routes import register_routes
 from .db import db
 import os
 from dotenv import load_dotenv
+from flask_cors import CORS
 
 load_dotenv()
 
@@ -18,6 +19,8 @@ def create_app():
         f"{os.getenv('DB_HOST')}:{os.getenv('DB_PORT')}/{os.getenv('DB_NAME')}"
     )
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+    
+    CORS(app)
 
     db.init_app(app)
     migrate.init_app(app, db)
