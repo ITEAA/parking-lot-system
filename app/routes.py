@@ -1,10 +1,10 @@
 from flask import request, jsonify
-from .models import db, Car, ParkingSpot, ParkingRecord
 from datetime import datetime
+from .models import db, Car, ParkingSpot, ParkingRecord
 
 def register_routes(app):
     @app.route("/", methods=["GET"])
-    def index():
+    def home():
         return "🚗 Parking Lot System 서버 실행 중!"
 
     @app.route("/entry", methods=["POST"])
@@ -12,7 +12,7 @@ def register_routes(app):
         data = request.get_json()
         plate_number = data.get("plate_number")
         is_compact = data.get("is_compact", False)
-        spot_number = data.get("spot_number")
+        spot_number = data.get("spot_number", "A1")  # 기본값 또는 프론트에서 전달받은 값
 
         if not plate_number or not spot_number:
             return jsonify({"error": "차량 번호와 주차 공간이 필요합니다."}), 400
@@ -30,7 +30,11 @@ def register_routes(app):
             return jsonify({"error": "이미 점유된 주차 공간입니다."}), 400
 
         spot.is_occupied = True
-        record = ParkingRecord(car=car, spot=spot, entry_time=datetime.now())
+        record = ParkingRecord(
+            car=car,
+            spot=spot,
+            entry_time=datetime.now()
+        )
         db.session.add(record)
         db.session.commit()
 
@@ -58,7 +62,8 @@ def register_routes(app):
 
         return jsonify({
             "message": f"{plate_number} 차량 출차 완료",
-            "fee": record.fee
+            "fee": record.fee,
+            "minutes": round(duration)
         }), 200
 
     @app.route("/parked", methods=["GET"])
