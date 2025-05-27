@@ -1,66 +1,92 @@
 from flask import Flask, request, jsonify
-from flask_cors import CORS
-from datetime import datetime
+from flask_cors import CORS  # 🔹 CORS 모듈 import
+from db_mysql_version import create_tables, park_car, exit_car, search_parking_logs, get_current_parking_count, get_all_parking_logs, get_current_parked_cars, MAX_PARKING
+
 
 app = Flask(__name__)
-CORS(app)  # React에서 접근 가능하게 허용
+CORS(app)  # 🔹 모든 요청에 대해 CORS 허용
 
-# 차량 저장소 (plate 번호를 key로, 입차 시간 + 경차 여부를 저장)
-parked_vehicles = {}  # 예: {'12가1234': {'entry_time': '2025-05-17T14:20:00', 'is_compact': True}}
+# DB 테이블이 없다면 생성
+create_tables()
 
-@app.route("/parked")
-def get_parked():
-    # 저장된 차량 정보 전체 반환 (경차 여부도 포함)
-    return jsonify([
+@app.route('/api/park', methods=['POST'])
+def park():
+    data = request.get_json()
+    car_number = data.get('car_number')
+    car_type = data.get('car_type')
+    if not car_number or not car_type:
+        return jsonify({"status": "fail", "message": "차량 번호와 차량 종류를 입력하세요."}), 400
+    result = park_car(car_number, car_type)
+    if result['status'] == 'fail':
+        return jsonify(result), 400
+    return jsonify(result)
+
+@app.route('/api/exit', methods=['POST'])
+def exit_vehicle():
+    data = request.get_json()
+    car_number = data.get('car_number')
+    if not car_number:
+        return jsonify({"status": "fail", "message": "차량 번호를 입력하세요."}), 400
+    result = exit_car(car_number)
+    if result['status'] == 'fail':
+        return jsonify(result), 400
+    return jsonify(result)
+
+@app.route('/api/logs', methods=['GET'])
+def logs():
+    car_number = request.args.get('car_number')
+    if not car_number:
+        return jsonify({"status": "fail", "message": "차량 번호를 입력하세요."}), 400
+    logs = search_parking_logs(car_number)
+    log_list = [
         {
-            "plate_number": plate,
-            "entry_time": data["entry_time"],
-            "is_compact": data["is_compact"]
-        }
-        for plate, data in parked_vehicles.items()
-    ])
+            "id": log[0],
+            "car_number": log[1],
+            "car_type": log[2],
+            "entry_time": log[3],
+            "exit_time": log[4],
+            "fee": log[5]
+        } for log in logs
+    ]
+    return jsonify({"status": "success", "logs": log_list})
 
-@app.route("/entry", methods=["POST"])
-def entry():
-    data = request.get_json()
-    plate = data["plate_number"]
-    is_compact = data.get("is_compact", False)  # 프론트에서 전달한 경차 여부 (없으면 False)
-    now = datetime.now().isoformat()
+@app.route('/api/current_count', methods=['GET'])
+def current_count():
+    count = get_current_parking_count()
+    return jsonify({"status": "success", "current_parking_count": count})
 
-    # 차량 정보 저장: 입차 시간 + 경차 여부
-    parked_vehicles[plate] = {
-        "entry_time": now,
-        "is_compact": is_compact
-    }
+@app.route('/api/logs/all', methods=['GET'])
+def all_logs():
+    logs = get_all_parking_logs()
+    log_list = [
+        {
+            "id": log[0],
+            "car_number": log[1],
+            "car_type": log[2],
+            "entry_time": log[3],
+            "exit_time": log[4],
+            "fee": log[5]
+        } for log in logs
+    ]
+    return jsonify({"status": "success", "logs": log_list})
 
-    return jsonify({"status": "입차 완료", "time": now, "is_compact": is_compact})
+@app.route('/api/parking/current', methods=['GET'])
+def current_parked_cars():
+    cars = get_current_parked_cars()
+    car_list = [
+        {
+            "id": car[0],
+            "car_number": car[1],
+            "car_type": car[2],
+            "entry_time": car[3]
+        } for car in cars
+    ]
+    return jsonify({"status": "success", "cars": car_list})
 
-@app.route("/exit", methods=["POST"])
-def exit():
-    data = request.get_json()
-    plate = data["plate_number"]
+@app.route('/api/max_capacity')
+def get_max_capacity():
+    return jsonify({"status": "success", "max_capacity": MAX_PARKING})
 
-    if plate not in parked_vehicles:
-        return jsonify({"error": "입차 기록 없음"}), 404
 
-    vehicle_data = parked_vehicles.pop(plate)
-    entry_time_str = vehicle_data["entry_time"]
-    is_compact = vehicle_data["is_compact"]
-
-    entry_time = datetime.fromisoformat(entry_time_str)
-    now = datetime.now()
-    minutes = int((now - entry_time).total_seconds() / 60)
-    base_fee = minutes * 100  # 기본 요금: 1분당 100원
-
-    # 경차일 경우 요금 50% 할인
-    fee = int(base_fee * 0.5) if is_compact else base_fee
-
-    return jsonify({
-        "plate_number": plate,
-        "fee": fee,
-        "parked_minutes": minutes,
-        "is_compact": is_compact
-    })
-
-if __name__ == "__main__":
-    app.run(port=5000)
+if __name__ == '__main__':
+    app.run(debug=True)
