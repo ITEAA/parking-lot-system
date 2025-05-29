@@ -1,6 +1,7 @@
 import sqlite3
 import os
 from datetime import datetime
+import pytz
 
 # 사용할 데이터베이스 파일명
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -8,6 +9,9 @@ DB_NAME = os.path.join(BASE_DIR, 'parking.db')
 
 # 주차장 최대 차량 수
 MAX_PARKING = 100
+
+# 한국 시간대 설정
+KST = pytz.timezone('Asia/Seoul')
 
 def connect_db():
     """데이터베이스에 연결하고 커넥션 객체 반환"""
@@ -17,13 +21,13 @@ def create_tables():
     """주차장 테이블과 출차 이력 테이블을 생성(없으면 생성)"""
     conn = connect_db()
     cursor = conn.cursor()
-    # 현재 주차 차량 테이블
+    # 현재 주차 차량 테이블 (entry_time의 DEFAULT 제거)
     cursor.execute('''
     CREATE TABLE IF NOT EXISTS parking (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         car_number TEXT NOT NULL UNIQUE,
         car_type TEXT NOT NULL,
-        entry_time DATETIME DEFAULT (datetime('now', 'localtime'))
+        entry_time DATETIME NOT NULL
     );
     ''')
     # 출차 이력 테이블
@@ -63,6 +67,7 @@ def park_car(car_number, car_type):
     차량 입차 함수
     - 만차 시 입차 불가
     - 이미 입차된 차량은 중복 입차 불가
+    - 입차 시간은 파이썬에서 KST로 구해 직접 저장
     """
     if get_current_parking_count() >= MAX_PARKING:
         print("주차공간이 없습니다.")
@@ -73,7 +78,12 @@ def park_car(car_number, car_type):
     conn = connect_db()
     cursor = conn.cursor()
     try:
-        cursor.execute("INSERT INTO parking (car_number, car_type) VALUES (?, ?)", (car_number, car_type))
+        entry_time = datetime.now(KST)
+        entry_time_str = entry_time.strftime('%Y-%m-%d %H:%M:%S')
+        cursor.execute(
+            "INSERT INTO parking (car_number, car_type, entry_time) VALUES (?, ?, ?)",
+            (car_number, car_type, entry_time_str)
+        )
         conn.commit()
         print(f"차량 번호 {car_number} ({car_type}) 입차 완료.")
     except sqlite3.IntegrityError:
@@ -93,6 +103,9 @@ def calculate_fee(entry_time_str, exit_time, car_type):
         entry_time = datetime.strptime(entry_time_str, '%Y-%m-%d %H:%M:%S')
     except ValueError:
         entry_time = datetime.strptime(entry_time_str, '%Y-%m-%d %H:%M:%S.%f')
+    # entry_time을 KST 타임존이 있는 aware datetime으로 변환
+    entry_time = KST.localize(entry_time)
+    # exit_time도 KST로 생성되어 있으므로 둘 다 aware datetime
     duration = (exit_time - entry_time).total_seconds() // 60  # 분 단위
 
     if duration <= 5:
@@ -115,6 +128,7 @@ def exit_car(car_number):
     - 출차 시 요금 계산 및 parking_log에 기록
     - parking 테이블에서 해당 차량 삭제
     - 없는 차량 출차 시 안내
+    - 출차 시간도 파이썬에서 KST로 구해 저장
     """
     conn = connect_db()
     cursor = conn.cursor()
@@ -125,7 +139,7 @@ def exit_car(car_number):
         conn.close()
         return
     car_type, entry_time_str = result
-    exit_time = datetime.now()
+    exit_time = datetime.now(KST)
     fee = calculate_fee(entry_time_str, exit_time, car_type)
     # 출차 기록 저장
     cursor.execute(
@@ -176,7 +190,7 @@ def show_parking_log():
         for row in rows:
             print(f"ID: {row[0]}, 차량번호: {row[1]}, 차량종류: {row[2]}, 입차시간: {row[3]}, 출차시간: {row[4]}, 요금: {row[5]}원")
 
-# ------------------ 사용 예시 ------------------
+# ------------------ 사용 예시 ------------------ 
 
 if __name__ == "__main__":
     #create_tables()  # 테이블 생성(최초 1회만)
@@ -194,16 +208,16 @@ if __name__ == "__main__":
     #show_parking_status()
 
     # 차량 출차 예시
-    #exit_car('1234')
+    #exit_car('5678')
     #exit_car('9999')  # 없는 차량 출차 테스트
 
     # 주차장 상태 확인
     #show_parking_status()
 
     # 출차 이력 확인
-    #show_parking_log()
+    show_parking_log()
     
-    #DB삭제
+    #DB삭제 예시
     '''
     if os.path.exists(DB_NAME):
         os.remove(DB_NAME)
